@@ -1,0 +1,21 @@
+<!doctype html>
+<head>
+    <title>Query Timer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<html>
+   <body>
+     <main>
+        <div class="px-4 py-3 my-2 text-center">
+			<!--<h1 class="display-6 fw-bold"> {{name}}</h1> -->
+			<h1 class="display-6 fw-bold"> {{total}}</h1>
+			{% for item in name %}
+				<li><h1 class="display-6 fw-bold"> {{item}}</h1></li>
+			{% endfor %}
+			
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 gap-3">Back home</a>
+          </div>
+     </main>      
+   </body>
+</html>
