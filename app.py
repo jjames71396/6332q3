@@ -101,8 +101,8 @@ def reg_small():
     FROM cities1
     WHERE idx = {}
     '''
-    for r in result['idx']:
-        idxs.append(r) 
+    for ro in result['idx']:
+        idxs.append(ro) 
     for i in range(args[2]):
         rands.append(random.randint(min(idxs),max(idxs)))
     for i in rands:
@@ -110,8 +110,8 @@ def reg_small():
         if res is None:
             res = pd.read_sql_query(query.format(i), engine)
         else:
-            r = pd.read_sql_query(query.format(i), engine)
-            res = pd.concat([res,r], ignore_index=True)
+            ret = pd.read_sql_query(query.format(i), engine)
+            res = pd.concat([res,ret], ignore_index=True)
         finish = time.time()
         tot += (finish-start)
         times.append(str(finish-start))
@@ -185,20 +185,19 @@ def cache_all():
     times = []
     tot = 0
     start = time.time()
-    result = pa.default_serialization_context()
-    res = r.get(arg)
-    if res is not None:
-        result.deserialize(res)
+    result = r.get(arg)
+    if result is not None:
+        result = pd.read_json(result)
     else:
         result = pd.read_sql_query(query.format(args[0],args[1]), engine)
-        r.set(arg,pa.default_serialization_context().serialize(result).to_buffer().to_pybytes())
+        r.set(arg,result.to_json())
     finish = time.time()
     times.append(str(arg)+": "+str(finish-start))
     tot += (finish-start)
     # Rendering the template with the query result
     
     if result is not None:
-       return render_template('count.html',total = "Total Time: "+str(tot), name = times)
+       return render_template('count.html',total = "Total Time: "+str(tot), tables=[result.to_html(classes='data', header="true")])
     else:
        print('Request for count page received with no name or blank name -- redirecting')
        return redirect(url_for('index'))
@@ -206,39 +205,55 @@ def cache_all():
 @app.route('/cache_small', methods=['POST'])
 def cache_small():
     # SQL query to retrieve earthquakes of a specific type and magnitude greater than a threshold
-    query = '''SELECT *
-    FROM cities
-    WHERE idx = {}
-    '''
     result = None
     arg = request.form.get('name')
-    if not arg.isnumeric():
-        return redirect(url_for('index'))
-    arg = int(arg)
+    args = arg.split(',')
+    args[0] = int(args[0])
+    args[1] = int(args[1])
+    args[2] = int(args[2])
+    query = '''SELECT *
+    FROM cities1
+    WHERE Population BETWEEN {} AND {}
+    '''
+    result = None
     rands = []
     times = []
     tot = 0
-    for i in range(arg):
-        rands.append(random.randint(0,10))
-    for i in rands:
+    result = pd.read_sql_query(query.format(args[0],args[1]), engine)
+    idxs = []
+    res = None
+    query = '''SELECT *
+    FROM cities1
+    WHERE idx = {}
+    '''
+    for ro in result['idx']:
+        idxs.append(ro) 
+    for i in range(args[2]):
+        rands.append(random.randint(min(idxs),max(idxs)))
+    for j,i in enumerate(rands):
         start = time.time()
-        result = pa.default_serialization_context()
-        res = r.get(i)
-        if res is not None:
-            result.deserialize(res)
+        if j > 0:
+            results = r.get(i)
+            if results is not None:
+                res = pd.read_json(results)
+            else:
+                res = pd.read_sql_query(query.format(i), engine)
         else:
-            result = pd.read_sql_query(query.format(i), engine)
-            r.set(i,pa.default_serialization_context().serialize(result).to_buffer().to_pybytes())
+            results = r.get(i)
+            if results is not None:
+                ret = pd.read_json(results)
+            else:
+                ret = pd.read_sql_query(query.format(i), engine)
+            res = pd.concat([res,ret], ignore_index=True)
         finish = time.time()
-        times.append(str(i)+": "+str(finish-start))
         tot += (finish-start)
+        times.append(str(finish-start))
     # Rendering the template with the query result
+    result = res
     
     if result is not None:
-       return render_template('count.html',total = "Total Time: "+str(tot), name = times)
+       return render_template('count.html',total = "Total Time: "+str(tot), times = times, tables=[result.to_html(classes='data', header="true")])
     else:
        print('Request for count page received with no name or blank name -- redirecting')
-       return redirect(url_for('index'))
-
 if __name__ == '__main__':
    app.run()

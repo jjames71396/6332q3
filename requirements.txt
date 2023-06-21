@@ -4,6 +4,6 @@ pandas
 azure-storage-blob
 azure-identity
 pymysql
-sqlalchemy
+SQLAlchemy==1.4.4
 redis
 pyarrow==11.0.0
