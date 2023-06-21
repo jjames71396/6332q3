@@ -185,17 +185,18 @@ def cache_all():
     times = []
     tot = 0
     start = time.time()
-    result = r.get(arg)
-    if result is not None:
-        result = pd.read_json(result)
+    result = pa.default_serialization_context()
+    res = r.get(arg)
+    if res is not None:
+        result.deserialize(res)
     else:
         result = pd.read_sql_query(query.format(args[0],args[1]), engine)
-        r.set(arg,result.to_json())
+        r.set(arg,pa.default_serialization_context().serialize(result).to_buffer().to_pybytes())
     finish = time.time()
     times.append(str(arg)+": "+str(finish-start))
     tot += (finish-start)
     # Rendering the template with the query result
-    
+    result = pd.read_sql_query(query.format(args[0],args[1]), engine)
     if result is not None:
        return render_template('count.html',total = "Total Time: "+str(tot), tables=[result.to_html(classes='data', header="true")])
     else:
