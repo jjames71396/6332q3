@@ -234,23 +234,37 @@ def cache_small():
     for j,i in enumerate(rands):
         start = time.time()
         if j > 0:
-            results = r.get(i)
-            if results is not None:
-                res = pd.read_json(results)
+            results = pa.default_serialization_context()
+            res = r.get(i)
+            if res is not None:
+                results.deserialize(res)
             else:
                 res = pd.read_sql_query(query.format(i), engine)
+                r.set(i,pa.default_serialization_context().serialize(res).to_buffer().to_pybytes())
         else:
-            results = r.get(i)
-            if results is not None:
-                ret = pd.read_json(results)
+            results = pa.default_serialization_context()
+            res = r.get(i)
+            if res is not None:
+                results.deserialize(res)
             else:
                 ret = pd.read_sql_query(query.format(i), engine)
-            res = pd.concat([res,ret], ignore_index=True)
+                r.set(i,pa.default_serialization_context().serialize(ret).to_buffer().to_pybytes())
+            #res = pd.concat([res,ret], ignore_index=True)
         finish = time.time()
         tot += (finish-start)
         times.append(str(finish-start))
     # Rendering the template with the query result
-    result = res
+    red = None
+    for i in rands:
+        if red is None:
+            red = pd.read_sql_query(query.format(i), engine)
+        else:
+            rett = pd.read_sql_query(query.format(i), engine)
+            red = pd.concat([red,rett], ignore_index=True)
+            
+    # Rendering the template with the query result
+    #result = res
+    result = red
     
     if result is not None:
        return render_template('count.html',total = "Total Time: "+str(tot), times = times, tables=[result.to_html(classes='data', header="true")])
