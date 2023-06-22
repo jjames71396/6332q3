@@ -50,78 +50,97 @@ def favicon():
 
 @app.route('/count', methods=['POST'])
 def count():
-    # SQL query to retrieve earthquakes of a specific type and magnitude greater than a threshold
-     # Retrieving data from the request form
-    result = None
+    # Retrieving data from the request form
     arg = request.form.get('name')
     args = arg.split(',')
-    args[0] = int(args[0])
-    args[1] = int(args[1])
-    query = '''SELECT *
-    FROM cities1
-    WHERE Population BETWEEN {} AND {}
-    '''
-    result = None
-    rands = []
-    times = []
-    tot = 0
-    start = time.time()
-    result = pd.read_sql_query(query.format(args[0],args[1]), engine)
-    finish = time.time()
-    times.append(str(finish-start))
-    tot += (finish-start)
-    # Rendering the template with the query result
     
+    sf = float(args[0])
+    nf = float(args[2])
+    wl = float(args[1])
+    el = float(args[3])
+    
+    # SQL query to retrieve earthquakes within the specified boundaries
+    query = '''SELECT *
+    FROM cities
+    WHERE lat BETWEEN {} AND {}
+    AND
+    lon BETWEEN {} AND {}
+    '''
+        
+    start = time.time()
+    # Executing the SQL query based on different boundary scenarios
+    if sf < nf and el < wl:
+        result = pd.read_sql_query(query.format(sf,nf,el,wl), engine)
+    elif sf < nf and wl < el:
+        result = pd.read_sql_query(query.format(sf,nf,wl,el), engine)
+    elif nf < sf and wl < el:
+        result = pd.read_sql_query(query.format(nf,sf,wl,el), engine)
+    elif nf < sf and el < wl:
+        result = pd.read_sql_query(query.format(nf,sf,el,wl), engine)          
+        
+    finish = time.time()   
+    tot = finish - start
+    # Rendering the template with the query result
     if result is not None:
-       return render_template('count.html',total = "Total Time: "+str(tot), tables=[result.to_html(classes='data', header="true")])
+       return render_template('count.html', total = tot, tables=[result.to_html(classes='data', header="true")])
     else:
        print('Request for count page received with no name or blank name -- redirecting')
+       return redirect(url_for('index'))
        
 @app.route('/reg_small', methods=['POST'])
 def reg_small():
-    # SQL query to retrieve earthquakes of a specific type and magnitude greater than a threshold
-    result = None
+    # Retrieving data from the request form
     arg = request.form.get('name')
     args = arg.split(',')
-    args[0] = int(args[0])
-    args[1] = int(args[1])
-    args[2] = int(args[2])
-    query = '''SELECT *
-    FROM cities1
-    WHERE Population BETWEEN {} AND {}
-    '''
-    result = None
-    rands = []
-    times = []
-    tot = 0
-    result = pd.read_sql_query(query.format(args[0],args[1]), engine)
-    idxs = []
-    res = None
-    query = '''SELECT *
-    FROM cities1
-    WHERE idx = {}
-    '''
-    for ro in result['idx']:
-        idxs.append(ro) 
-    for i in range(args[2]):
-        rands.append(random.randint(min(idxs),max(idxs)))
-    for i in rands:
-        start = time.time()
-        if res is None:
-            res = pd.read_sql_query(query.format(i), engine)
-        else:
-            ret = pd.read_sql_query(query.format(i), engine)
-            res = pd.concat([res,ret], ignore_index=True)
-        finish = time.time()
-        tot += (finish-start)
-        times.append(str(finish-start))
-    # Rendering the template with the query result
-    result = res
     
+    sf = float(args[0])
+    nf = float(args[2])
+    wl = float(args[1])
+    el = float(args[3])
+    
+    # SQL query to retrieve earthquakes within the specified boundaries
+    query = '''SELECT *
+    FROM cities
+    WHERE lat BETWEEN {} AND {}
+    AND
+    lon BETWEEN {} AND {}
+    '''
+    
+    
+    
+    start = time.time()
+    result = pa.default_serialization_context()
+    res = r.get(arg)
+    if res is not None:
+        result.deserialize(res)
+    else:
+        # Executing the SQL query based on different boundary scenarios
+        if sf < nf and el < wl:
+            result = pd.read_sql_query(query.format(sf,nf,el,wl), engine)
+        elif sf < nf and wl < el:
+            result = pd.read_sql_query(query.format(sf,nf,wl,el), engine)
+        elif nf < sf and wl < el:
+            result = pd.read_sql_query(query.format(nf,sf,wl,el), engine)
+        elif nf < sf and el < wl:
+            result = pd.read_sql_query(query.format(nf,sf,el,wl), engine)          
+        r.set(arg,pa.default_serialization_context().serialize(result).to_buffer().to_pybytes())
+
+    finish = time.time()   
+    tot = finish - start
+    if sf < nf and el < wl:
+        result = pd.read_sql_query(query.format(sf,nf,el,wl), engine)
+    elif sf < nf and wl < el:
+        result = pd.read_sql_query(query.format(sf,nf,wl,el), engine)
+    elif nf < sf and wl < el:
+        result = pd.read_sql_query(query.format(nf,sf,wl,el), engine)
+    elif nf < sf and el < wl:
+        result = pd.read_sql_query(query.format(nf,sf,el,wl), engine)
+    # Rendering the template with the query result
     if result is not None:
-       return render_template('count.html',total = "Total Time: "+str(tot), times = times, tables=[result.to_html(classes='data', header="true")])
+       return render_template('count.html', total = tot, tables=[result.to_html(classes='data', header="true")])
     else:
        print('Request for count page received with no name or blank name -- redirecting')
+       return redirect(url_for('index'))
 
 @app.route('/increment', methods=['POST'])
 def increment():
@@ -171,65 +190,113 @@ def increment():
 
 @app.route('/cache_all', methods=['POST'])
 def cache_all():
-    # SQL query to retrieve earthquakes of a specific type and magnitude greater than a threshold
-    result = None
+    # Retrieving data from the request form
     arg = request.form.get('name')
     args = arg.split(',')
-    args[0] = int(args[0])
-    args[1] = int(args[1])
+    
+    sf = float(args[0])
+    nf = float(args[2])
+    wl = float(args[1])
+    el = float(args[3])
+    
+    # SQL query to retrieve earthquakes within the specified boundaries
     query = '''SELECT *
-    FROM cities1
-    WHERE Population BETWEEN {} AND {}
+    FROM cities
+    WHERE lat BETWEEN {} AND {}
+    AND
+    lon BETWEEN {} AND {}
     '''
+        
+    # Executing the SQL query based on different boundary scenarios
+    if sf < nf and el < wl:
+        result = pd.read_sql_query(query.format(sf,nf,el,wl), engine)
+    elif sf < nf and wl < el:
+        result = pd.read_sql_query(query.format(sf,nf,wl,el), engine)
+    elif nf < sf and wl < el:
+        result = pd.read_sql_query(query.format(nf,sf,wl,el), engine)
+    elif nf < sf and el < wl:
+        result = pd.read_sql_query(query.format(nf,sf,el,wl), engine)          
+
     rands = []
     times = []
     tot = 0
-    start = time.time()
-    result = pa.default_serialization_context()
-    res = r.get(arg)
-    if res is not None:
-        result.deserialize(res)
-    else:
-        result = pd.read_sql_query(query.format(args[0],args[1]), engine)
-        r.set(arg,pa.default_serialization_context().serialize(result).to_buffer().to_pybytes())
-    finish = time.time()
-    times.append(str(arg)+": "+str(finish-start))
-    tot += (finish-start)
-    # Rendering the template with the query result
-    result = pd.read_sql_query(query.format(args[0],args[1]), engine)
-    if result is not None:
-       return render_template('count.html',total = "Total Time: "+str(tot), tables=[result.to_html(classes='data', header="true")])
-    else:
-       print('Request for count page received with no name or blank name -- redirecting')
-       return redirect(url_for('index'))
-       
-@app.route('/cache_small', methods=['POST'])
-def cache_small():
-    # SQL query to retrieve earthquakes of a specific type and magnitude greater than a threshold
-    result = None
-    arg = request.form.get('name')
-    args = arg.split(',')
-    args[0] = int(args[0])
-    args[1] = int(args[1])
-    args[2] = int(args[2])
-    query = '''SELECT *
-    FROM cities1
-    WHERE Population BETWEEN {} AND {}
-    '''
-    result = None
-    rands = []
-    times = []
-    tot = 0
-    result = pd.read_sql_query(query.format(args[0],args[1]), engine)
     idxs = []
     res = None
     query = '''SELECT *
-    FROM cities1
+    FROM cities
     WHERE idx = {}
     '''
+    print(int(args[4]))
     for ro in result['idx']:
         idxs.append(ro) 
-    for i in range(args[2]):
+    for i in range(int(args[4])):
+        rands.append(random.randint(min(idxs),max(idxs)))
+    for j,i in enumerate(rands):
+        start = time.time()
+        res = pd.read_sql_query(query.format(i), engine)
+        finish = time.time()
+        tot += (finish-start)
+        times.append(str(finish-start))
+    # Rendering the template with the query result
+    red = None
+    for i in rands:
+        if red is None:
+            red = pd.read_sql_query(query.format(i), engine)
+        else:
+            rett = pd.read_sql_query(query.format(i), engine)
+            red = pd.concat([red,rett], ignore_index=True)
+            
+    # Rendering the template with the query result
+    #result = res
+    result = red
+    
+    if result is not None:
+       return render_template('count.html',total = "Total Time: "+str(tot), times = times, tables=[result.to_html(classes='data', header="true")])
+    else:
+       print('Request for count page received with no name or blank name -- redirecting')
+       
+@app.route('/cache_small', methods=['POST'])
+def cache_small():
+    # Retrieving data from the request form
+    arg = request.form.get('name')
+    args = arg.split(',')
+    
+    sf = float(args[0])
+    nf = float(args[2])
+    wl = float(args[1])
+    el = float(args[3])
+    
+    # SQL query to retrieve earthquakes within the specified boundaries
+    query = '''SELECT *
+    FROM cities
+    WHERE lat BETWEEN {} AND {}
+    AND
+    lon BETWEEN {} AND {}
+    '''
+        
+    # Executing the SQL query based on different boundary scenarios
+    if sf < nf and el < wl:
+        result = pd.read_sql_query(query.format(sf,nf,el,wl), engine)
+    elif sf < nf and wl < el:
+        result = pd.read_sql_query(query.format(sf,nf,wl,el), engine)
+    elif nf < sf and wl < el:
+        result = pd.read_sql_query(query.format(nf,sf,wl,el), engine)
+    elif nf < sf and el < wl:
+        result = pd.read_sql_query(query.format(nf,sf,el,wl), engine)          
+
+    rands = []
+    times = []
+    tot = 0
+    idxs = []
+    res = None
+    query = '''SELECT *
+    FROM cities
+    WHERE idx = {}
+    '''
+    print(int(args[4]))
+    for ro in result['idx']:
+        idxs.append(ro) 
+    for i in range(int(args[4])):
         rands.append(random.randint(min(idxs),max(idxs)))
     for j,i in enumerate(rands):
         start = time.time()
